@@ -3,7 +3,6 @@ import sys
 import logging
 import inspect
 import traceback
-from decorator import decorator
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -61,7 +60,7 @@ class LogCallBase(object):
         
             try:
                 try:
-                    frame = sys._getframe(3)
+                    frame = sys._getframe(1)
                     
                     # In case we find args and first parameter with class type.
                     if args and inspect.isclass(type(args[0])):
