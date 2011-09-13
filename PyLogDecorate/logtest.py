@@ -1,4 +1,4 @@
-from log import LogCall, LogClass
+from PyLogDecorate.log import LogCall, LogClass
 
 @LogCall()
 def test():
@@ -7,7 +7,7 @@ def test():
 @LogClass({"subdecorate": True})
 class test1(object):
             
-    @LogCall({"subdecorate": True})
+    @LogCall({"subdecorate": True, "tracename": "tracetest"})
     def test(self):
         print "znj"
     
@@ -18,7 +18,7 @@ class test2(test1):
         pass
     
     def test(self):
-        print 1/1
+        self.logger.debug("Inside funtion.")
     
     
 test()

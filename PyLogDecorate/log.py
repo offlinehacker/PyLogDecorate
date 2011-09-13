@@ -19,6 +19,12 @@ def keyIsTrue(dic, key):
     
     return False
 
+def haskey(dic, key):
+    if not dic:
+        return False
+    
+    return dic.has_key(key)
+
 def toStr(obj):
     try: 
         return str(obj)
@@ -52,8 +58,20 @@ class LogCallBase(object):
             # Report exceptions before letting them bubble
             err = None
             
+            # In case we find args and first parameter with class type.
+            if args and inspect.isclass(type(args[0])):
+                if hasattr(args[0], "logger"):
+                    logger= args[0].logger
+                else:
+                    logger = logging.getLogger(fn.__module__+"."+fn.__class__.__name__)
+            else:
+                # Get a logger named after the module hierarchy      
+                logger = logging.getLogger(fn.__module__)
+    
             try:
+                self.trace_in(logger)
                 result = fn(*args)
+                self.trace_out(logger)
             except Exception, e:
                 result = "CRASHED"
                 err = e
@@ -61,16 +79,6 @@ class LogCallBase(object):
             try:
                 try:
                     frame = sys._getframe(1)
-                    
-                    # In case we find args and first parameter with class type.
-                    if args and inspect.isclass(type(args[0])):
-                        if hasattr(args[0], "logger"):
-                            logger= args[0].logger
-                        else:
-                            logger = logging.getLogger(fn.__module__+"."+fn.__class__.__name__)
-                    else:
-                        # Get a logger named after the module hierarchy      
-                        logger = logging.getLogger(fn.__module__)
                         
                     self.log_f(logger, frame, fn, args, {}, result)
         
@@ -88,8 +96,19 @@ class LogCallBase(object):
                 
         if keyIsTrue(self.args, "subdecorate"):
             wrapped_f.__subdecorate__= self
+            
+        # Store information that function is hooked
+        wrapped_f.__loghhok__= True
                 
         return wrapped_f
+    
+    def trace_in(self, logger):
+        if haskey(self.args, "tracename"):
+            logger.debug("tracein: %s" % self.args["tracename"], extra={"trace_in": self.args["tracename"]} )
+
+    def trace_out(self, logger):
+        if haskey(self.args, "tracename"):
+            logger.debug("traceout: %s" % self.args["tracename"], extra={"trace_out": self.args["tracename"]} )
     
     def log_f(self, logger, frame, fn, args, kw, result):
         '''
@@ -166,7 +185,7 @@ class LogClass(object):
             for key in parent.__dict__:
                 fn= getattr(parent, key)
                 if hasattr(fn, "__subdecorate__"):
-                    if hasattr(klas, key):
+                    if hasattr(klas, key) and not hasattr(getattr(klas,key),"__loghook__"):
                         setattr(klas,key,fn.__subdecorate__.hook(getattr(klas,key)))
         
         def _init(instance, *args, **kws):
