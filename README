@@ -4,9 +4,12 @@ If your answer is true, here is my implementation https://gist.github.com/121449
 
 This logging decorator implementation can be easily extended.
 
+Install:
+    python setup.py install or easy_install PyLogDecorate.
+
 Example code:
 
-    from log import LogCall, LogClass
+    from PyLogDecoratelog import LogCall, LogClass
 
     @LogCall()
     def test():
@@ -30,7 +33,5 @@ Example code:
     test()
     b=test2()
     b.test()
-
- 
 
 Hack on folks :) 
