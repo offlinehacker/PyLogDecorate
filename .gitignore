@@ -1,0 +1,7 @@
+*.pyc
+PyLogDecorate.egg-info/*
+bin/*
+build/*
+dist/*
+include/*
+lib/*
