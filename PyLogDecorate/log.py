@@ -50,7 +50,7 @@ class LogCallBase(object):
         
     def __call__(self, fn):
         """Log calls to fn, reporting caller, args, and return value"""
-                
+        
         return self.hook(fn)
         
     def hook(self, fn):
@@ -58,20 +58,23 @@ class LogCallBase(object):
             # Report exceptions before letting them bubble
             err = None
             
+            classfn= False
             # In case we find args and first parameter with class type.
             if args and inspect.isclass(type(args[0])):
                 if hasattr(args[0], "logger"):
                     logger= args[0].logger
                 else:
                     logger = logging.getLogger(fn.__module__+"."+fn.__class__.__name__)
+
+                classfn= True
             else:
                 # Get a logger named after the module hierarchy      
                 logger = logging.getLogger(fn.__module__)
     
             try:
-                self.trace_in(logger)
+                if classfn: self.trace_in(logger, args[0])
                 result = fn(*args)
-                self.trace_out(logger)
+                if classfn: self.trace_out(logger, args[0])
             except Exception, e:
                 result = "CRASHED"
                 err = e
@@ -79,7 +82,7 @@ class LogCallBase(object):
             try:
                 try:
                     frame = sys._getframe(1)
-                        
+        
                     self.log_f(logger, frame, fn, args, {}, result)
         
                 except Exception, e:
@@ -93,22 +96,26 @@ class LogCallBase(object):
                     raise err 
                 else:
                     return result
-                
+        
         if keyIsTrue(self.args, "subdecorate"):
             wrapped_f.__subdecorate__= self
-            
+        
         # Store information that function is hooked
-        wrapped_f.__loghhok__= True
-                
+        wrapped_f.__loghook__= True
+        
         return wrapped_f
     
-    def trace_in(self, logger):
-        if haskey(self.args, "tracename"):
-            logger.debug("tracein: %s" % self.args["tracename"], extra={"trace_in": self.args["tracename"]} )
+    def trace_in(self, logger, instance):
+        if haskey(self.args, "tracename") and haskey(self.args, "traceattr"):
+            traceattr= str( getattr(instance,self.args["traceattr"],"") )
+            logger.debug("tracein: %s, traceattr: %s" % (self.args["tracename"], traceattr), \
+                    extra={"trace_in": self.args["tracename"], "traceattr": traceattr } )
 
-    def trace_out(self, logger):
-        if haskey(self.args, "tracename"):
-            logger.debug("traceout: %s" % self.args["tracename"], extra={"trace_out": self.args["tracename"]} )
+    def trace_out(self, logger, instance):
+        if haskey(self.args, "tracename") and haskey(self.args, "traceattr"):
+            traceattr= str( getattr(instance,self.args["traceattr"],"") )
+            logger.debug("traceout: %s, traceattr: %s" % (self.args["tracename"], traceattr), \
+                    extra={"trace_out": self.args["tracename"], "traceattr": traceattr } )
     
     def log_f(self, logger, frame, fn, args, kw, result):
         '''
@@ -172,16 +179,18 @@ class LogClass(object):
         self.args= args
         
     def __call__(self, klas):
-        self.klas= klas
         if hasattr(klas, "__init__"):
-            self.original_init= klas.__init__ 
+            self.original_init= klas.__init__
         else: self.original_init= None
         
         if keyIsTrue(self.args, "subdecorate"):
             klas.__subdecorate__= self
         
         parent= inspect.getmro(klas)[1]
-        if hasattr(parent,"__subdecorate__"):
+        # Inherit arguments from parent if no arguments specifficed.
+        if hasattr(parent, "__loghook__") and not self.args:
+            self.args= parent.__loghook__.args
+        if hasattr(parent, "__subdecorate__"):
             for key in parent.__dict__:
                 fn= getattr(parent, key)
                 if hasattr(fn, "__subdecorate__"):
@@ -189,18 +198,19 @@ class LogClass(object):
                         setattr(klas,key,fn.__subdecorate__.hook(getattr(klas,key)))
         
         def _init(instance, *args, **kws):
-            # we must check if logger already exists.
+            # We must check if logger already exists and if inherit logger is true.
             if not( hasattr(instance,"logger") and instance.logger ) \
                or not keyIsTrue(self.args["inherit_logger"]):
                 instance.logger= logging.getLogger(instance.__class__.__module__+"."+ \
-                                                   instance.__class__.__name__)
+                                                       instance.__class__.__name__)
             # In case we specific level set level for class.
-            if self.args and self.args["level"]:
+            if self.args and self.args.has_key("level"):
                 instance.logger.setLevel(self.args["level"])
-                
+
             if self.original_init:
                 self.original_init(instance, *args, **kws) # call the original __init__
         
-        klas.__init__ = _init # set the class' __init__ to the new one
+        klas.__init__ = _init # set the class' __init__ to the new one.
+        klas.__loghook__ = self # Set that class has been hooked.
         return klas
 

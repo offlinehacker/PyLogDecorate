@@ -1,4 +1,4 @@
-from PyLogDecorate.log import LogCall, LogClass
+from log import LogCall, LogClass
 
 @LogCall()
 def test():
@@ -6,12 +6,13 @@ def test():
 
 @LogClass({"subdecorate": True})
 class test1(object):
-            
-    @LogCall({"subdecorate": True, "tracename": "tracetest"})
+    name="kekec" 
+    name2="kekec2"
+    @LogCall({"subdecorate": True, "tracename": "tracetest", "traceattr": "name"})
     def test(self):
         pass
     
-    @LogCall({"subdecorate": True, "tracename": "tracetest"})  
+    @LogCall({"subdecorate": True, "tracename": "tracetest", "traceattr": "name2"})  
     def test2(self):
         self.logger.debug("Inside base class!")
 
